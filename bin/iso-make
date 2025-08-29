@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+# Prepare build repo
+BUILD_SCRIPT="builder/online.sh"
+BUILD_ROOT=$(realpath "${BASH_SOURCE[0]%/*}/..")
+BUILD_RELEASE_PATH="$BUILD_ROOT/release"
+mkdir -p "$BUILD_RELEASE_PATH"
+
+# Configurator repo
+CONFIGURATOR_REPO="${CONFIGURATOR_REPO:-aeris-org/configurator}"
+CONFIGURATOR_REF="${CONFIGURATOR_REF:-master}"
+
+OMARCHY_INSTALLER_REPO="${OMARCHY_INSTALLER_REPO:-basecamp/omarchy}"
+OMARCHY_INSTALLER_REF="${OMARCHY_INSTALLER_REF:-master}"
+OMARCHY_INSTALLER_URL="${OMARCHY_INSTALLER_URL:-https://omarchy.org/install}"
+
+# Run the builder
+docker run --rm \
+  --privileged \
+  -e "CONFIGURATOR_REPO=$CONFIGURATOR_REPO" \
+  -e "CONFIGURATOR_REF=$CONFIGURATOR_REF" \
+  -e "OMARCHY_INSTALLER_REPO=$OMARCHY_INSTALLER_REPO" \
+  -e "OMARCHY_INSTALLER_REF=$OMARCHY_INSTALLER_REF" \
+  -e "OMARCHY_INSTALLER_URL=$OMARCHY_INSTALLER_URL" \
+  -v "$BUILD_RELEASE_PATH/:/release/" \
+  -v "$BUILD_ROOT/$BUILD_SCRIPT:/$BUILD_SCRIPT:ro" \
+  -v "$BUILD_ROOT/builder:/builder:ro" \
+  archlinux/archlinux:latest /$BUILD_SCRIPT
+
+# Move as install ref
+latest_iso=$(\ls -t "$BUILD_RELEASE_PATH"/*.iso | head -n1)
+iso_ref="${latest_iso%.*}-$OMARCHY_INSTALLER_REF.iso"
+mv "$latest_iso" "$iso_ref"
